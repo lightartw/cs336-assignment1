@@ -1,6 +1,8 @@
 import os
 from typing import BinaryIO
-
+import regex as re
+import multiprocessing
+from collections import Counter
 
 def find_chunk_boundaries(
     file: BinaryIO,
@@ -48,15 +50,88 @@ def find_chunk_boundaries(
     # Make sure all boundaries are unique, but might be fewer than desired_num_chunks
     return sorted(set(chunk_boundaries))
 
+# ================================= BPE ====================================
+# 1. Vocabulary：256 + endoftext
+# =========================  parilization ==================================
+# 1.5. split chunk with <|endoftext|>(remove special tokens)
+# 2. pretoken : use regex, datastructure dict[tuple(bytes), int];
+# ================================================================== 
+# 3.merge: use a dict: for str, freq in pretoken:
+#                          for every to succecieve word in vocabulary in str:
+#                                 merge[word] += freq
+#   get merged token , vocabulary.add(merged_token)
+# for token in pretoken: change tuple(bytes) based on new vocabulary 
 
-## Usage
-with open(..., "rb") as f:
-    num_processes = 4
-    boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
+filename = ""
+special_tokens = ["<|endoftext|>"]
+ENDOFTEXT = b"<|endoftext|>"
 
-    # The following is a serial implementation, but you can parallelize this
-    # by sending each start/end pair to a set of processes.
-    for start, end in zip(boundaries[:-1], boundaries[1:]):
-        f.seek(start)
-        chunk = f.read(end - start).decode("utf-8", errors="ignore")
-        # Run pre-tokenization on your chunk and store the counts for each pre-token
+
+def pretoken(chunk: str):
+    # remove special tokens
+    escaped_tokens = [re.escape(token) for token in special_tokens]
+    pattern = "|".join(escaped_tokens)
+    segments = re.split(pattern, chunk)
+
+    # pretoken
+    PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+    token_cnt = Counter()
+    for seg in segments:
+        for m in re.finditer(PAT, seg):
+            token_tuple = tuple(char.encode('utf-8') for char in m.group())
+            token_cnt[token_tuple] += 1
+    return token_cnt
+
+def merge_vocab(best_pair, pretoken_counts):
+    new_tokens = {}
+
+    merged_unit = best_pair[0] + best_pair[1]
+    for token, freq in pretoken_counts.items():
+        new_token = []
+        i = 0
+        while i < len(token):
+            if i < len(token) - 1 and token[i] == best_pair[0] and token[i+1] == best_pair[1]:
+                new_token.append(merged_unit)
+                i += 2
+            else:
+                new_token.append(token[i])
+                i += 1
+        new_counts[tuple(new_token)] = freq
+    
+    return new_counts
+
+
+if __name__ == "__main__":
+    num_processes = multiprocessing.cpu_count()
+    num_merge = 3
+    # 1.vocabulary
+    vocabulary: list[bytes] = [bytes([i]) for i in range(256)] + [ENDOFTEXT]
+
+    # 2.pretoken 
+    with open(filename, "rb") as f:
+        boundaries = find_chunk_boundaries(f, num_processes, ENDOFTEXT)
+        chunks = []
+        for start, end in zip(boundaries[:-1], boundaries[1:]):
+            f.seek(start)
+            chunks.append(f.read(end - start).decode("utf-8", errors="ignore"))
+
+    pretoken_counts = Counter()
+    with multiprocessing.Pool(processes=num_processes) as pool:
+        for partial_count in pool.imap_unordered(pretoken, chunks):
+            pretoken_counts.update(partial_count)
+     
+    # 3. merge
+    for _ in range(num_merge):    
+        freq_counts = Counter()
+        for token, freq in pretoken_counts.items():
+            for i, j in zip(token, token[1:]):
+                pair = (token[i], token[j])
+                freq_counts[pair] += freq
+        best_pair = max(
+            freq_counts.keys(), 
+            key=lambda x: (freq_counts[x], x)
+        )
+        # update vocab
+        vocabulary.append(best_pair[0] + best_pair[1])
+        # real merge
+        pretoken_counts = merge_vocab(best_pair, pretoken_counts)
