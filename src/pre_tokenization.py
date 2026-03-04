@@ -4,43 +4,74 @@ import regex as re
 import multiprocessing
 from collections import Counter, defaultdict
 
+from tqdm import tqdm
+import time
+import logging
 class PreTokenizer:
-    def __init__(self, input_path: str, special_tokens=["<|endoftext|>"]):
+    def __init__(self, input_path: str, special_tokens: list[str]=["<|endoftext|>"]):
         self.input_path = input_path
-        self.num_processes = multiprocessing.cpu_count() // 2
         self.special_tokens = special_tokens
         self.ENDOFTEXT = self.special_tokens[0].encode("utf-8") if self.special_tokens else b"<|endoftext|>"
+        self.num_processes = multiprocessing.cpu_count()
 
-    def pretoken(self) -> dict[bytes, int]:
+    def pretoken(self, verbose: bool = False) -> dict[bytes, int]:
+        pretoken_counts = Counter()
+
+        # record time
+        start_time = time.time()
+        file_size = os.path.getsize(self.input_path)
+        if verbose:
+            logging.info(f"start, filesize: {file_size / 1024 / 1024:.2f} MB")
+
         with open(self.input_path, "rb") as f:
             boundaries = self.find_chunk_boundaries(f, self.num_processes, self.ENDOFTEXT)
-            chunks = []
-            for start, end in zip(boundaries[:-1], boundaries[1:]):
-                f.seek(start)
-                chunks.append(f.read(end - start).decode("utf-8", errors="ignore").replace("\r\n", "\n"))   # windows specifice
+        chunk_args = []
+        for i in range(len(boundaries) - 1):
+            start = boundaries[i]
+            end = boundaries[i+1]
+            chunk_args.append((self.input_path, start, end, self.special_tokens))
 
-        pretoken_counts = Counter()
         with multiprocessing.Pool(processes=self.num_processes) as pool:
-            for partial_count in pool.imap_unordered(self.partial_token, chunks):
+            result_iter = pool.imap_unordered(self.processes_chunk, chunk_args)
+            # tqdm
+            if verbose:
+                result_iter = tqdm(result_iter, total=len(chunk_args), desc="pretokenize", unit="chunk")
+            for partial_count in result_iter:
                 pretoken_counts.update(partial_count)
+        # end time
+        end_time = time.time()
+        if verbose:
+            duration = end_time - start_time
+            speed_md = (file_size / 1024 / 1024) / duration
+            logging.info(f"finish! time: {duration:.2f} sec")
+            logging.info(f"speed: {speed_md:.2f} MB/s")
+
         return pretoken_counts
 
-    def partial_token(self, chunk: str):
+    @staticmethod
+    def processes_chunk(args) -> dict[bytes, int]:
+        input_path, start, end, special_tokens = args
+
+        pretoken_cnt = Counter()
+        PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+        
+        with open(input_path, "rb") as f:
+            f.seek(start)
+            chunk = f.read(end - start).decode("utf-8", errors="ignore").replace("\r\n", "\n")   # windows specifice
         # remove special tokens
-        escaped_tokens = [re.escape(token) for token in self.special_tokens]
+        escaped_tokens = [re.escape(token) for token in special_tokens]
         pattern = "|".join(escaped_tokens)
         segments = re.split(pattern, chunk)
 
         # pretoken
-        PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-        token_cnt = Counter()
         for seg in segments:
             if not seg:
                 continue
             for m in re.finditer(PAT, seg):
                 word = m.group().encode("utf-8")
-                token_cnt[word] += 1
-        return token_cnt
+                pretoken_cnt[word] += 1
+        return pretoken_cnt
+
     
     def find_chunk_boundaries(
         self,
@@ -84,3 +115,17 @@ class PreTokenizer:
 
         # Make sure all boundaries are unique, but might be fewer than desired_num_chunks
         return sorted(set(chunk_boundaries))
+
+
+# testing
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, 
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+
+    file = "data/owt_valid.txt"
+    special_tokens = ["<|endoftext|>"]
+    pretokenizer = PreTokenizer(file, special_tokens)
+    pretoken_count = pretokenizer.pretoken(verbose=True)
+    print(pretoken_count)

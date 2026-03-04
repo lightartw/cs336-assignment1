@@ -4,15 +4,20 @@ import regex as re
 import multiprocessing
 from collections import Counter, defaultdict
 
+from tqdm import tqdm
+
 from .pre_tokenization import PreTokenizer
 
 class BpeTrainer:
     def __init__(self, 
         input_path: str, 
-        vocab_size: int=300, 
+        vocab_size: int, 
         special_tokens: list[str]=["<|endoftext|>"],
-        pre_tokenizer=PreTokenizer
+        pre_tokenizer=PreTokenizer,
+        verbose: bool = False 
     ):
+        # control monitor
+        self.verbose = verbose
         # vocabulary 
         self.target_vocab_size = vocab_size
         self.special_tokens = special_tokens
@@ -36,7 +41,7 @@ class BpeTrainer:
 
         self.merges: list[tuple[bytes, bytes]] = []
         # pretokenization
-        self.pretoken_count: dict[bytes, int] = self.pretokenizer.pretoken()
+        self.pretoken_count: dict[bytes, int] = self.pretokenizer.pretoken(verbose=self.verbose)
 
         # init cur_token, pair_count, pair_to_pretokens            
         for pretoken, freq in self.pretoken_count.items():
@@ -90,26 +95,32 @@ class BpeTrainer:
     def train(self):
         self._initialization()
 
-        while len(self.vocab) < self.target_vocab_size:
-            if not self.pair_count:
-                break    
-            
-            best_pair = max(self.pair_count.keys(), key=lambda pair: (self.pair_count[pair], pair))
-            cur_freq = self.pair_count[best_pair]
-            # print(f"best pair: {best_pair}, freq: {cur_freq}")
-            if cur_freq <= 0:
-                break
-            # update vocab & merge
-            self.merges.append(best_pair)
-            new_token_id = len(self.vocab)
-            new_token_bytes = best_pair[0] + best_pair[1] 
-            self.vocab[new_token_id] = new_token_bytes
-            # real merge
-            self._apply_merge(best_pair)
+        num_merges = self.target_vocab_size - len(self.vocab)
 
-            # 进度条
-            if len(self.vocab) % 100 == 0:
-                print(f"Current Vocab Size: {len(self.vocab)} / {self.target_vocab_size}")
+        with tqdm(total=num_merges, desc="BPE Training", disable=not self.verbose) as pbar:
+            while len(self.vocab) < self.target_vocab_size:
+                if not self.pair_count:
+                    break    
+                
+                best_pair = max(self.pair_count.keys(), key=lambda pair: (self.pair_count[pair], pair))
+                cur_freq = self.pair_count[best_pair]
+                if cur_freq <= 0:
+                    break
+                # update vocab & merge
+                self.merges.append(best_pair)
+                new_token_id = len(self.vocab)
+                new_token_bytes = best_pair[0] + best_pair[1] 
+                self.vocab[new_token_id] = new_token_bytes
+                # real merge
+                self._apply_merge(best_pair)
+
+                # update pbar
+                pbar.set_description(f"Vocab: {len(self.vocab)}")
+                pbar.update(1)
+                pbar.set_postfix({"last_freq": cur_freq})
+
+        if self.verbose:
+            tqdm.write(f"Final vocabulary size: {len(self.vocab)}")
 
         return self.vocab, self.merges
 
@@ -125,10 +136,9 @@ if __name__ == "__main__":
     file_path = os.path.join(data_dir, "TinyStoriesV2-GPT4-valid.txt")
     special_tokens=["<|endoftext|>"]
     
-    bpe = BpeTrainer(file_path, 300, special_tokens)
+    bpe = BpeTrainer(file_path, 300, special_tokens, verbose=True)
     
-    print("begin training")
-    
+    print("begin training")    
     # 在代码内部启动 profiler
     profiler = cProfile.Profile()
     profiler.enable()
@@ -136,8 +146,8 @@ if __name__ == "__main__":
     bpe.train()
     print("================vocabulary==============")
     print(bpe.vocab)
-    print("==================tokens==============")
-    print(bpe.pretoken_count)
+    # print("==================tokens==============")
+    # print(bpe.pretoken_count)
     
     profiler.disable()
     

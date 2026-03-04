@@ -1,4 +1,4 @@
-from cs336_basics.bpe import BPETokenizer
+from src.bpe import BpeTrainer
 import os
 import multiprocessing
 import cProfile
@@ -27,10 +27,8 @@ def load_bpe_results(results_path="results/bpe_results.pkl"):
 
     return vocab, merges
 
-load_bpe_results()
+# load_bpe_results()
 
-
-"""
 if __name__ == "__main__":
     multiprocessing.freeze_support()
     
@@ -45,12 +43,12 @@ if __name__ == "__main__":
     special_tokens = ["<|endoftext|>"]
     
     # --- training ---
-    bpe = BPETokenizer(file_path, vocab_size, special_tokens)
+    bpe = BpeTrainer(file_path, vocab_size, special_tokens, verbose=True)
     
     profiler = cProfile.Profile()
     profiler.enable()
     
-    vocab, merges = bpe.train_bpe()
+    vocab, merges = bpe.train()
     
     profiler.disable()
 
@@ -82,4 +80,3 @@ if __name__ == "__main__":
     longest_token = max(vocab.values(), key=len)
     print(f"Longest token: {longest_token}")
     print(f"Longest token length: {len(longest_token)} bytes")
-"""
