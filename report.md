@@ -1,4 +1,4 @@
-# BPE traing
+## BPE traing
 - 实现过程中参考了以下文章：[CS336 Lab 1 实验笔记](https://www.zhouxin.space/notes/notes-on-cs336-lab-1/)
 - 注意点
   - 使用cProfile测量性能
@@ -47,3 +47,20 @@
     19593    0.977    0.000    0.977    0.000 {method 'write' of '_io.TextIOWrapper' objects}
     58761    0.434    0.000    1.971    0.000 {built-in method builtins.sum}
 ```
+
+### 实验结果
+- TinyStory
+  - Training time: 0.0122 hours (44.03 seconds)
+  - Peak memory usage: 0.1164 GB (119.24 MB)
+  - Longest token: b' accomplishment'
+  - 性能分析：即上面优化后的结果，最耗时的部分为进主程等待多进程预分词完成的同步过程，而核心逻辑最耗时的为合并操作（_apply_merge）
+- owt
+  - 直接训练OOM了，对 heap 进行优化，将 push 操作放到循环外进行，减少 heap 中的无效数据
+  - Training time: 1057.392 seconds
+  - Peak Memory: 5981.53MB
+  - Longest Token: b'\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82\xc3\x83\xc3\x82' (64 bytes)
+- TinyStories(after optimize)
+  - 优化后的 TinyStories 速度如下
+  - Peak Memory: 60.89MB
+  - Longest Token: b' accomplishment' (15 bytes)
+  - Training time: 35.902 seconds

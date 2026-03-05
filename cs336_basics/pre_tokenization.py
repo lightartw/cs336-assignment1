@@ -7,6 +7,7 @@ from collections import Counter, defaultdict
 from tqdm import tqdm
 import time
 import logging
+
 class PreTokenizer:
     def __init__(self, input_path: str, special_tokens: list[str]=["<|endoftext|>"]):
         self.input_path = input_path
@@ -24,7 +25,7 @@ class PreTokenizer:
             logging.info(f"start, filesize: {file_size / 1024 / 1024:.2f} MB")
 
         with open(self.input_path, "rb") as f:
-            boundaries = self.find_chunk_boundaries(f, self.num_processes, self.ENDOFTEXT)
+            boundaries = self.find_chunk_boundaries(f, self.num_processes * 20, self.ENDOFTEXT)
         chunk_args = []
         for i in range(len(boundaries) - 1):
             start = boundaries[i]
@@ -117,6 +118,16 @@ class PreTokenizer:
         return sorted(set(chunk_boundaries))
 
 
+import psutil
+import os
+
+def print_process_memory():
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    print(f"Current Process Memory: {mem_info.rss / (1024 * 1024):.2f} MB")
+
+
+
 # testing
 if __name__ == "__main__":
     logging.basicConfig(
@@ -124,8 +135,10 @@ if __name__ == "__main__":
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
-    file = "data/owt_valid.txt"
+    file = "data/owt_train.txt"
     special_tokens = ["<|endoftext|>"]
     pretokenizer = PreTokenizer(file, special_tokens)
+    # 在 pretoken 运行前后分别打印
+    print_process_memory()
     pretoken_count = pretokenizer.pretoken(verbose=True)
-    print(pretoken_count)
+    print_process_memory()
