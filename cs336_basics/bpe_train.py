@@ -41,9 +41,11 @@ class BPETrainer:
         # vocabulary 
         self.target_vocab_size = vocab_size
         self.special_tokens = special_tokens
-        self.voab: dict[int, bytes] = {}
+        self.vocab: dict[int, bytes] = {}
+        self.ENDOFTEXT = b"<|endoftext|>"
         # pretoken
-        self.pretokenizer = pre_tokenizer(input_path, special_tokens)
+        self.input_path = input_path
+        self.pretokenizer = pre_tokenizer(special_tokens)
         self.pretoken_states: dict[bytes, list[bytes]] = {}
         # pair
         self.pair_count: dict[tuple[bytes, bytes], int] = Counter()
@@ -61,7 +63,8 @@ class BPETrainer:
 
         self.merges: list[tuple[bytes, bytes]] = []
         # pretokenization
-        self.pretoken_count: dict[bytes, int] = self.pretokenizer.pretoken(verbose=self.verbose)
+        self.pretoken_count: dict[bytes, int] = self.pretokenizer.pretoken(
+            self.input_path, self.ENDOFTEXT, verbose=self.verbose)
 
         # init cur_token, pair_count, pair_to_pretokens            
         for pretoken, freq in tqdm(
@@ -164,11 +167,10 @@ class BPETrainer:
                     break
                 
                 # update vocab & merge
-                self.merges.append(best_pair)
-                new_token_id = len(self.vocab)
+                self.merges.append(best_pair) 
                 new_token_bytes = best_pair[0] + best_pair[1] 
-                self.vocab[new_token_id] = new_token_bytes
-                
+                self.vocab[len(self.vocab)] = new_token_bytes
+
                 # real merge
                 self._apply_merge(best_pair)
                 # update pbar

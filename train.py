@@ -12,20 +12,7 @@ import time
 import tracemalloc
 import logging
 
-
 logger = logging.getLogger(__name__)
-
-def load_bpe_results(results_dir="results"):
-    results_path = Path(results_dir)
-    with open(results_path / "vocab.json", "r", encoding="utf-8") as f:
-        vocab = json.load(f)
-    merges = []
-    with open(results_path / "merges.txt", "r", encoding="utf-8") as f:
-        for line in f:
-            if line.strip():
-                merges.append(tuple(line.strip().split()))
-                
-    return vocab, merges
 
 def train_tokenizer(
     data_path: str | Path,
