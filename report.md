@@ -1,3 +1,4 @@
+# BPE
 ## BPE traing
 - 实现过程中参考了以下文章：[CS336 Lab 1 实验笔记](https://www.zhouxin.space/notes/notes-on-cs336-lab-1/)
 - 注意点
@@ -62,5 +63,21 @@
 - TinyStories(after optimize)
   - 优化后的 TinyStories 速度如下
   - Peak Memory: 60.89MB
-  - Longest Token: b' accomplishment' (15 bytes)
   - Training time: 35.902 seconds
+
+## BPE Tokenizer
+- encode_one_token：有两种算法，
+  - 一种是遍历merges直接模拟，较慢
+  - 另外一种首先记录一个字典 pair_to_id，然后遍历 pretoken 找到 id 最低的 pair（即最先merge的pair），进行merge，速度提升很多
+
+### 实验结果
+- ratio 对比：
+
+| Dataset        | TinyStories vocab&merges | OpenWebText vocab&merges |
+|----------------|-----------------------|-----------------------|
+| TinyStories    | 4.13                  | 3.97                  |
+| OpenWebText    | 2.63                  | 4.47                  |
+
+- 为什么使用uint16：
+  - uint16 可以表示从 0 到 65535 的整数范围，词汇表大小分别为 10,000 和 32,000，足够表示，而且可以必uint32节省空间
+

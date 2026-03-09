@@ -218,7 +218,7 @@ if __name__ == "__main__":
     file_path = os.path.join(data_dir, "TinyStoriesV2-GPT4-valid.txt")
     special_tokens=["<|endoftext|>"]
     
-    bpe = BpeTrainer(file_path, 300, special_tokens, verbose=True)
+    bpe = BPETrainer(file_path, 300, special_tokens, verbose=True)
     
     # 在代码内部启动 profiler
     profiler = cProfile.Profile()
