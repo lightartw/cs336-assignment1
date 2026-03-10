@@ -157,5 +157,3 @@ class Tokenizer:
                     chunk_bytes = self.encode_to_bytes(text_chunk)
                     if chunk_bytes:
                         f_out.write(chunk_bytes) 
-
-
