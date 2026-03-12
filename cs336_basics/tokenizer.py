@@ -139,14 +139,15 @@ class Tokenizer:
 
         split_token_bytes = self.special_tokens[0].encode("utf-8")
         with open(data_file, "rb") as f:
-            boundaries = find_chunk_boundaries(f, 400, split_token_bytes)
+            boundaries = find_chunk_boundaries(f, (os.cpu_count() or 16) * 30, split_token_bytes)
+
 
         file_iter = get_file_iter(data_file, boundaries)
 
         # batch encode
         with open(output_file, "wb") as f_out:
             if batch:
-                num_workers = os.cpu_count() or 8
+                num_workers = os.cpu_count() or 16
                 with Pool(processes=num_workers) as pool:
                     results = pool.imap(self.encode_to_bytes, file_iter, chunksize=1)
                     for chunk_bytes in tqdm(results, desc="Multi-proc Encoding", total=len(boundaries)-1):
