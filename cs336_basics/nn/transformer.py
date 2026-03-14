@@ -9,13 +9,15 @@ class TransformerBlock(nn.Module):
         num_heads: int, 
         d_ff: int,
         theta: float | None = None,
-        max_seq_len: int | None = None
+        max_seq_len: int | None = None,
+        device=None,
+        dtype=None
     ):
         super().__init__()
-        self.rmsn1 = RMSNorm(d_model)
-        self.MHA = MultiheadSelfAttention(d_model, num_heads, theta=theta, max_seq_len=max_seq_len)
-        self.rmsn2 = RMSNorm(d_model)
-        self.FFN = SwiGLU(d_model, d_ff)
+        self.rmsn1 = RMSNorm(d_model, device=device, dtype=dtype)
+        self.MHA = MultiheadSelfAttention(d_model, num_heads, theta, max_seq_len, device, dtype)
+        self.rmsn2 = RMSNorm(d_model, device=device, dtype=dtype)
+        self.FFN = SwiGLU(d_model, d_ff, device, dtype)
     
     def reset_parameters(self):
         self.rmsn1.reset_parameters()
@@ -38,9 +40,11 @@ class TransformerLM(nn.Module):
         num_heads: int,
         d_ff: int,
         theta: float | None = None,
+        device=None,
+        dtype=None
     ):
         super().__init__()
-        self.embedding = Embedding(vocab_size, d_model)
+        self.embedding = Embedding(vocab_size, d_model, device, dtype)
 
         self.blocks = nn.ModuleList([
             TransformerBlock(
@@ -48,12 +52,14 @@ class TransformerLM(nn.Module):
                 num_heads=num_heads,
                 d_ff=d_ff,
                 theta=theta,
-                max_seq_len=context_length
+                max_seq_len=context_length,
+                device=device,
+                dtype=dtype
             ) for _ in range(num_layers)
         ])
 
-        self.post_norm = RMSNorm(d_model)
-        self.lm_head = Linear(d_model, vocab_size)
+        self.post_norm = RMSNorm(d_model, device=device, dtype=dtype)
+        self.lm_head = Linear(d_model, vocab_size, device, dtype)
   
     def reset_parameters(self):
         self.embedding.reset_parameters()

@@ -167,5 +167,11 @@ def encode_file(
     except Exception as e:
         logger.error(f"Error during file encoding: {e}", exc_info=True) 
 
+@app.command()
+def train(config_json: str):
+    from cs336_basics.nn.train import train
+    train(config_json)
+
+
 if __name__ == "__main__":
     app()

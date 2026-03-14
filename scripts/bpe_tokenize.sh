@@ -7,11 +7,13 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 DATA_DIR="$PROJECT_ROOT/data"
 RESULTS_DIR="$PROJECT_ROOT/results"
-TRAIN_PY="$PROJECT_ROOT/train.py"
+TRAIN_PY="$PROJECT_ROOT/main.py"
 
 # --- 2. 映射表 ---
-declare -A VOCAB_DIRS=( ["owt"]="owt_train" ["ts"]="TinyStories" )
-declare -A DATA_FILES=( ["owt"]="owt_train.txt" ["ts"]="TinyStoriesV2-GPT4-train.txt" )
+declare -A VOCAB_DIRS=( ["owt"]="owt_train" ["ts"]="TinyStories" \
+                        ["owt-valid"]="owt_train" ["ts-valid"]="TinyStories")
+declare -A DATA_FILES=( ["owt"]="owt_train.txt" ["ts"]="TinyStoriesV2-GPT4-train.txt" \
+                        ["owt-valid"]="owt_valid.txt" ["ts-valid"]="TinyStoriesV2-GPT4-valid.txt")
 
 # --- 3. 核心函数 ---
 run_single_compare() {
@@ -46,7 +48,7 @@ run_single_encode() {
 
     local v_dir="${RESULTS_DIR}/${VOCAB_DIRS[$key]}"
     local d_file="${DATA_DIR}/${DATA_FILES[$key]}"
-    local out_file="${v_dir}/encoded_data.bin"
+    local out_file="${v_dir}/valid_data.bin"
 
     echo ">>> Running Encode: Dataset=$key"
     echo ">>> Target Bin: $out_file"

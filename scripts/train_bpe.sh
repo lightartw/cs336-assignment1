@@ -7,7 +7,7 @@ PROJECT_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 
 DATA_DIR="$PROJECT_ROOT/data"
 RESULTS_DIR="$PROJECT_ROOT/results"
-TRAIN_PY="$PROJECT_ROOT/train.py"
+TRAIN_PY="$PROJECT_ROOT/main.py"
 
 # 确保输出目录存在
 mkdir -p "$RESULTS_DIR"

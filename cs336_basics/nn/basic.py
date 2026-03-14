@@ -112,7 +112,9 @@ class MultiheadSelfAttention(nn.Module):
             d_model: int, 
             num_heads: int,
             theta: float | None = None,
-            max_seq_len: int | None = None
+            max_seq_len: int | None = None,
+            device=None,
+            dtype=None
         ):
         super().__init__()
         self.d_model = d_model
@@ -121,16 +123,16 @@ class MultiheadSelfAttention(nn.Module):
         assert d_model % num_heads == 0
         self.head_dim = d_model // num_heads
 
-        self.wq = Linear(d_model, d_model)
-        self.wk = Linear(d_model, d_model)
-        self.wv = Linear(d_model, d_model)
+        self.wq = Linear(d_model, d_model, device, dtype)
+        self.wk = Linear(d_model, d_model, device, dtype)
+        self.wv = Linear(d_model, d_model, device, dtype)
 
-        self.wo = Linear(d_model, d_model)
+        self.wo = Linear(d_model, d_model, device, dtype)
 
         # RoPE
         self.rope = None
         if theta is not None and max_seq_len is not None:
-            self.rope = RoPE(theta=theta, d_k=self.head_dim, max_seq_len=max_seq_len)
+            self.rope = RoPE(theta=theta, d_k=self.head_dim, max_seq_len=max_seq_len, device=device)
 
         self.reset_parameters()
 

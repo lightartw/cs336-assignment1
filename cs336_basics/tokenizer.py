@@ -35,6 +35,8 @@ class Tokenizer:
    
     @classmethod
     def from_files(cls, vocab_filepath: str, merges_filepath: str, special_tokens: list[str] | None=None):
+        if special_tokens is None:
+            special_tokens = ["<|endoftext|>"]
         # 1. vocab
         with open(vocab_filepath, "r", encoding="utf-8") as f:
             serialized_vocab = json.load(f)
