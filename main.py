@@ -13,7 +13,9 @@ import typer
 import regex as re
 from cs336_basics.bpe_train import BPETrainer
 from cs336_basics.tokenizer import Tokenizer
-
+from cs336_basics.nn.train import train as run_train
+from cs336_basics.nn.config import Config
+import json
 
 app = typer.Typer(help="CS336 Train", add_completion=False)
 
@@ -167,11 +169,57 @@ def encode_file(
     except Exception as e:
         logger.error(f"Error during file encoding: {e}", exc_info=True) 
 
+# ================== train model =====================
+
+def train_lr(config_json: str):
+    with open(config_json, 'r') as f:
+        config_dict = json.load(f)
+    lr = config_dict['optimizer']['learning_rate']
+    base_dir = config_dict['training']['out_dir']
+    config_dict['training']['out_dir'] = os.path.join(base_dir, f"lr_{lr}")
+    config_dict['training']['wandb_project'] = "tinystories-lr-experiment"
+    
+    os.makedirs(config_dict['training']['out_dir'], exist_ok=True)
+    
+    config_obj = Config.model_validate(config_dict)
+    print(f"🚀 启动训练 | LR: {lr} | 目录: {config_dict['training']['out_dir']}")
+    run_train(config_obj)
+
+def train_batch(config_json: str):
+    import math
+    with open(config_json, 'r') as f:
+        config_dict = json.load(f)
+
+    base_batch = 64
+    base_lr = 0.001
+    base_iter = 5000
+    base_dir = config_dict['training']['out_dir']
+    config_dict['training']['wandb_project'] = "tinystories-batch-experiment"        
+    os.makedirs(config_dict['training']['out_dir'], exist_ok=True)
+
+    batches = [1, 32, 128]
+    for batch in batches:
+        lr = base_lr *  math.sqrt(batch / base_batch)
+        max_iter = base_iter * (base_batch / batch)
+        
+        config_dict['training']['out_dir'] = os.path.join(base_dir, f"batch_{batch}_")
+        config_dict['training']['batch_size'] = batch
+        config_dict['optimizer']['learning_rate'] = lr
+        config_dict['training']['max_iters'] = max_iter
+        config_dict['training']['cosine_cycle_iters'] = max_iter
+        config_dict['training']['warmup_iters'] = max_iter // 20
+        config_dict['training']['eval_interval'] = max_iter // 100
+        config_dict['training']['log_interval'] = max_iter // 500
+
+        config_obj = Config.model_validate(config_dict)
+        print(f"🚀 启动训练 | Batch: {batch} | 目录: {config_dict['training']['out_dir']}")
+        run_train(config_obj)
+
+
 @app.command()
 def train(config_json: str):
-    from cs336_basics.nn.train import train
-    train(config_json)
-
+    train_batch(config_json)
+    
 
 if __name__ == "__main__":
     app()

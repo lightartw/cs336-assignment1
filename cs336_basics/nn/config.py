@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+import os
 
 class ModelConfig(BaseModel):
     vocab_size: int
@@ -42,4 +43,9 @@ class Config(BaseModel):
     @classmethod
     def from_json(cls, json_path: str):
         with open(json_path, 'r', encoding='utf-8') as f:
-            return cls.model_validate_json(f.read()) 
+            content = f.read()
+            
+        try:
+            return cls.model_validate_json(content)
+        except Exception as e:
+            raise ValueError(f"{e}") 

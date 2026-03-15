@@ -5,7 +5,7 @@ from .util import softmax, load_checkpoint
 from .transformer import TransformerLM
 from cs336_basics.tokenizer import Tokenizer
 
-class decoder():
+class Decoder():
     def __init__(
         self,
         config: Config | str,       # model config(config.json)
@@ -33,6 +33,7 @@ class decoder():
         self.device = mc.device 
         self.model.to(self.device)
 
+        self.context_length = mc.context_length
         self.tokenizer = Tokenizer.from_files(vocab_path, merges_path)
         self.endtoken = "<|endoftext|>"
 
@@ -48,6 +49,7 @@ class decoder():
         prompt_tensor = torch.tensor([prompt_ids], device=self.device)
         end_token_id =  self.tokenizer.encode(self.endtoken)[0]
 
+        max_length = min(max_length, self.context_length)
         while len(prompt_ids) < max_length:
             logits = self.model(prompt_tensor)
             next_token_logits = logits[0, -1, :]
@@ -88,3 +90,25 @@ class decoder():
             prompt_tensor = torch.tensor([prompt_ids], device=self.device)
 
         return self.tokenizer.decode(prompt_ids)
+
+
+# ============== test ====================
+# python -m cs336_basics.nn.decode
+import os
+
+if __name__ == "__main__":
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    def get_abs_path(rel_path: str) -> str:
+        return os.path.normpath(os.path.join(current_dir, rel_path))
+
+    config = get_abs_path("../../experiments/config.json")
+    ckpt_path = get_abs_path("../../experiments/TinyStories/lr_0.001/checkpoint_5000.pt")
+    vocab_path = get_abs_path("../../results/TinyStories/vocab.json")
+    merges_path = get_abs_path("../../results/TinyStories/merges.txt")
+
+    # decoder
+    decoder = Decoder(config, ckpt_path, vocab_path, merges_path)
+    prompt = "Once upon a time"
+    output = decoder.decode(prompt, 256, temperature=1.2, p=0.9)
+    print(output)

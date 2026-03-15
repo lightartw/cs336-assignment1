@@ -149,3 +149,59 @@
   - Total = 1726629888b + 8508230400 (element)
   - Total = 6.4b + 31.7   (GB)
   - maximun batch size: (80 - 31.7) / 6.4, 约为 7
+
+# Experiments
+
+## TinyStories
+- 实验结果保存在wandb
+
+### learning_rate(6 run)
+- optimizer基本配置如下：betas = (0.9, 0.999) ;eps = 1e-8 ;weight_decay = 0.01
+- 探索六组lr：1e-4, 3e-4, 1e-3, 3e-3, 6e-3, 1e-2
+- 结果：总体而言前三组随着lr上升，val_loss以及train_loss都下降，后三组随着lr上升，val_loss, train_loss都上升。当lr=0.01时，出现了发散现象，loss先下降后上升。最好的lr=0.001
+
+<img src="image/lr-experiment.png" alt="train" width="500">
+<img src="image/lr-experiment-val.png" alt="val" width="500">
+
+### batch_size_experiment(4 run)
+- baseline: batch=64, lr=0.001,max_iter=5000, warmup_iter=max_iter / 20
+- base LR设置： 
+  - 平方缩放法则：$LR_{new} = LR_{base} \times \sqrt{\frac{BS_{new}}{BS_{base}}}$
+
+- Token设置: 保证总token不变
+  - total_token = max_iter * batch_size * context_size
+  - max_iter = total_token / (batch_size * context_size)
+
+- 实验在4060 LAPTOP上进行，测试了batch为1, 16,  32, 128时的数据
+- 结果：batch=128时token/s只有2k左右，相比于32时的50000左右下降巨大，可能是显存不够的原因，应该到达了 GPU 内存上限。因为运行速度过慢，因此没有完成所有的训练
+- batch 为 1 时测试了 0.00125与 0.000125两组学习率，曲线都非常陡峭，batch增大后曲线逐渐平缓
+
+<img src="image/batch-64-train.png" alt="baseline" width="500">
+<img src="image/batch-train.png" alt="train" width="500">
+<img src="image/batch-val.png" alt="val" width="500">
+
+### generate text
+- temp=0.9, p=0.9
+- 输出较为流畅，大致符合英语语法
+```
+Once upon a time, there was a big, soft cushion. The cushion was very special because it could make a lot of noise. One day, a little boy named Tim went to the cushion to play with his friends.
+Tim's mom said, "Tim, remember to be careful with the cushion. It's not safe." Tim did not listen to his mom. He wanted to play with his friends, but he did not listen to his mom. He told them to be careful and not play with the cushion.
+Tim listened to his mom and went to play with his friends. He saw that his mom was not there. He learned that playing with his friends was fun and not foolish. He was happy to be safe with his friends.
+<|endoftext|>
+```
+
+### Ablations(5 run)
+- baseline：batch=64时的配置
+ 
+- Ablation1
+  - remove RMSNorm
+  - if fail, reduce lr
+
+- Ablation2
+  - pre-norm -> post-norm
+
+- Ablation3(no position emb)
+  - remove RoPE
+
+- Ablation4(SwiGLU)
+  - SwiGLU -> SiLU

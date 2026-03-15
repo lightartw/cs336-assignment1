@@ -91,13 +91,18 @@ def load_batch(
     dataset: npt.NDArray, 
     batch_size: int,
     context_length: int,
-    device: str
+    device: str,
+    shuffle: bool = True 
 ) -> tuple[torch.Tensor, torch.Tensor]:
     max_index = len(dataset) - context_length - 1
-    ix = torch.randint(max_index + 1, (batch_size, )).tolist()
+    
+    if shuffle:
+        ix = torch.randint(max_index + 1, (batch_size, )).tolist()
+    else:
+        ix = list(range(batch_size)) 
+
     x_tensors = [torch.tensor(dataset[i : i + context_length], dtype=torch.long) for i in ix]
     y_tensors = [torch.tensor(dataset[i + 1 : i + 1 + context_length], dtype=torch.long) for i in ix]
-    
     x = torch.stack(x_tensors).to(device)
     y = torch.stack(y_tensors).to(device)
     return x, y
