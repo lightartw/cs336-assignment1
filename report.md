@@ -154,6 +154,7 @@
 
 ## TinyStories
 - 实验结果保存在wandb
+- total_tokens: 81920000
 
 ### learning_rate(6 run)
 - optimizer基本配置如下：betas = (0.9, 0.999) ;eps = 1e-8 ;weight_decay = 0.01
@@ -191,17 +192,23 @@ Tim listened to his mom and went to play with his friends. He saw that his mom w
 ```
 
 ### Ablations(5 run)
-- baseline：batch=64时的配置
+- baseline：batch=64, lr=0.001
  
 - Ablation1
-  - remove RMSNorm
-  - if fail, reduce lr
+  - RMSNorm: 按照baseline设置，去除RMSNorm时，训练到约1450轮时loss变为Nan。将学习率调整为 0.0001后完成了 5000 轮训练，但是因为学习率比较低，loss依然较高
+
+<img src="image/abla1-train.png" alt="RMSNorm" width="500">
+
+  - post-norm：在测试中 post-norm 与 pre-norm 并没有显著区别
+
+<img src="image/abla1-postnorm-train.png" alt="post-norm" width="500">
 
 - Ablation2
-  - pre-norm -> post-norm
+  - NoPE: 移除RoPE后训练表现比有RoPE的模型略差，但没有显著差距
 
-- Ablation3(no position emb)
-  - remove RoPE
+<img src="image/abla2-train.png" alt="NoPE" width="500">
 
-- Ablation4(SwiGLU)
-  - SwiGLU -> SiLU
+- Ablation3
+  - SiLU: 参数设置 $d_{ff}=4 \times d_{model}$，因此 SiLU 与 SwiGLU 参数量一致; 结果显示在当前参数量以及训练周期下，SiLU 与SwiGLU并没有显著差异
+
+  <img src="image/abla3-train.png" alt="SiLU" width="500">

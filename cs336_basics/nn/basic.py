@@ -129,7 +129,7 @@ class MultiheadSelfAttention(nn.Module):
 
         self.wo = Linear(d_model, d_model, device, dtype)
 
-        # RoPE
+        # RoPE(removed)
         self.rope = None
         if theta is not None and max_seq_len is not None:
             self.rope = RoPE(theta=theta, d_k=self.head_dim, max_seq_len=max_seq_len, device=device)
@@ -160,8 +160,6 @@ class MultiheadSelfAttention(nn.Module):
         
         out = out.transpose(1, 2).contiguous().view(b, s, d)
         return self.wo(out)
-
-        
 
 class SwiGLU(nn.Module):
     def __init__(self, in_features: int, ff_features: int, device=None, dtype=None):
@@ -202,4 +200,40 @@ class SwiGLU(nn.Module):
         up_proj = self.linear3(x)
 
         return self.linear2(gate * up_proj)
+    
+class SiLU(nn.Module):
+    def __init__(self):
+        super().__init__()
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x * torch.sigmoid(x)
+
+class FFN_silu(nn.Module):
+    def __init__(self, in_features: int, ff_features: int, device=None, dtype=None):
+        super().__init__()
+
+        self.d_model = in_features
+        self.d_ff = ff_features
+
+        self.linear1 = Linear(
+            self.d_model,
+            self.d_ff,
+            device=device,
+            dtype=dtype
+        )
+
+        self.linear2 = Linear(
+            self.d_ff,
+            self.d_model,
+            device=device,
+            dtype=dtype
+        )
+
+    def reset_parameters(self):
+        self.linear1.reset_parameters()
+        self.linear2.reset_parameters()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.linear1(x)
+        x = x * torch.sigmoid(x)
+        return self.linear2(x)

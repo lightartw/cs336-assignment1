@@ -49,7 +49,7 @@ def find_latest_checkpoint(out_dir: str) -> Optional[str]:
         return str(max_ckpt)
     return None
 
-def manage_checkpoints(out_dir: str, max_to_keep: int = 10):
+def manage_checkpoints(out_dir: str, max_to_keep: int = 5):
     out_path = Path(out_dir)
     checkpoints = list(out_path.glob("checkpoint_*.pt"))
     
@@ -164,9 +164,9 @@ def train(config: Config | str):
                 "train/loss": loss.item(),
                 "train/lr": lr,
                 "perf/tokens_per_sec": tokens_per_sec,
-                "time/elapsed_sec": end_time - training_start_time
-                                                                    # "train/total_tokens": total_tokens
-            }, step=total_tokens)
+                "time/elapsed_sec": end_time - training_start_time,
+                "train/total_tokens": total_tokens
+            }, step=iter_num)
             logger.info(f"Iter {iter_num:5d} | Tokens: {total_tokens:.2e} | Loss: {loss.item():.4f} | LR: {lr:.2e} | Tok/s: {tokens_per_sec:.0f}") 
 
         # eval and save
@@ -175,7 +175,7 @@ def train(config: Config | str):
                 val_loss = estimate_loss(model, val_data, tc.batch_size, mc.context_length, mc.device)
                 wandb.log({
                     "val/loss": val_loss,
-                }, step=total_tokens)
+                }, step=iter_num)
                 logger.success(f"Iter {iter_num} | Validation Loss: {val_loss:.4f}")
 
             save_path = ckpt_dir / f"checkpoint_{iter_num}.pt" 

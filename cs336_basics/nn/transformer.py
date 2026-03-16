@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .basic import RMSNorm, MultiheadSelfAttention, SwiGLU, Embedding, Linear
+from .basic import RMSNorm, MultiheadSelfAttention, SwiGLU, Embedding, Linear, FFN_silu
 
 class TransformerBlock(nn.Module):
     def __init__(

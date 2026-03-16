@@ -218,8 +218,7 @@ def train_batch(config_json: str):
 
 @app.command()
 def train(config_json: str):
-    train_batch(config_json)
-    
+    run_train(config_json)
 
 if __name__ == "__main__":
     app()
